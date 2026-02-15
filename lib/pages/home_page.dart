@@ -6,63 +6,119 @@ import 'webview_login_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
-
   @override
   State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  List<Course> _courseList = []; // 存放解析后的课程
-  bool _isLoading = false;
+  List<Course> _courses = [];
+  int currentWeek = 1; 
+  final double sectionHeight = 64.0; // 参考 CourseCardSpec.kt
 
-  void _fetchSchedule() async {
-    setState(() => _isLoading = true);
+  @override
+  void initState() {
+    super.initState();
+    _calculateCurrentWeek(); // 初始化时计算周次
+  }
+
+  // 根据 kebiao.html 提供的开学日期 2026-03-02 动态计算周次
+  void _calculateCurrentWeek() {
+    DateTime startDate = DateTime(2026, 3, 2);
+    DateTime now = DateTime.now();
+    if (now.isBefore(startDate)) {
+      currentWeek = 1;
+    } else {
+      int days = now.difference(startDate).inDays;
+      setState(() => currentWeek = (days / 7).floor() + 1);
+    }
+  }
+
+  void _refreshData() async {
+    // 接口地址参考 kebiao.html 和 JwxtApi.kt
+    const semesterId = "112"; 
+    final url = "/student/for-std/course-table/get-data?semesterId=$semesterId&bizTypeId=2";
     
-    // 1. 抓取 HTML
-    String html = await NetClient().get("/student/for-std/course-table");
-    
-    // 2. 调用解析器
-    List<Course> parsedCourses = ScheduleParser.parseSchedule(html);
-    
-    setState(() {
-      _courseList = parsedCourses;
-      _isLoading = false;
-    });
+    String jsonRaw = await NetClient().get(url);
+    setState(() => _courses = ScheduleParser.parseSchedule(jsonRaw));
   }
 
   @override
   Widget build(BuildContext context) {
+    double columnWidth = (MediaQuery.of(context).size.width - 40) / 7;
+
     return Scaffold(
-      appBar: AppBar(title: const Text("我的课表")),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator()) // 加载中动画
-        : _courseList.isEmpty
-          ? const Center(child: Text("暂无课程数据，请先登录或刷新"))
-          : ListView.builder(
-              itemCount: _courseList.length,
-              itemBuilder: (context, index) {
-                final course = _courseList[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-                  child: ListTile(
-                    leading: const Icon(Icons.book, color: Colors.blue),
-                    title: Text(course.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text("${course.teacher} @ ${course.location}"),
-                    trailing: Text(course.time),
-                  ),
-                );
-              },
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _fetchSchedule,
-        child: const Icon(Icons.refresh),
+      appBar: AppBar(
+        title: Text("第 $currentWeek 周"),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.chevron_left),
+          onPressed: () => setState(() => currentWeek > 1 ? currentWeek-- : null),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => setState(() => currentWeek++),
+          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshData),
+          IconButton(
+            icon: const Icon(Icons.login, color: Colors.orange), 
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (c) => const LoginWebView()))
+          ),
+        ],
       ),
-      bottomNavigationBar: BottomAppBar(
-        child: TextButton(
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const LoginWebView())),
-          child: const Text("去登录"),
+      body: SingleChildScrollView(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildTimeColumn(),
+            Expanded(
+              child: SizedBox(
+                height: sectionHeight * 12,
+                child: Stack(
+                  children: [
+                    _buildGridLines(),
+                    ..._courses.map((c) => _buildCourseCard(c, columnWidth)),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildCourseCard(Course course, double width) {
+    // 仿照 CourseCard.kt 判断本周是否有课
+    bool isCurrentWeek = course.weekIndexes.contains(currentWeek);
+
+    return Positioned(
+      top: (course.startTime - 1) * sectionHeight,
+      left: (course.weekday - 1) * width,
+      width: width,
+      height: course.length * sectionHeight,
+      child: Container(
+        margin: const EdgeInsets.all(2),
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: isCurrentWeek ? course.color : Colors.grey.withOpacity(0.2), // 非本周变灰
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(course.name, 
+              style: TextStyle(fontSize: 10, color: isCurrentWeek ? Colors.white : Colors.black38, fontWeight: FontWeight.bold), 
+              maxLines: 3, overflow: TextOverflow.ellipsis),
+            const Spacer(),
+            if (isCurrentWeek)
+              Text(course.location, style: const TextStyle(fontSize: 9, color: Colors.white70), maxLines: 1),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTimeColumn() => SizedBox(width: 40, child: Column(children: List.generate(12, (i) => SizedBox(height: sectionHeight, child: Center(child: Text("${i + 1}", style: const TextStyle(color: Colors.grey, fontSize: 12)))))));
+  Widget _buildGridLines() => Stack(children: List.generate(12, (i) => Positioned(top: i * sectionHeight, left: 0, right: 0, child: Container(height: sectionHeight, decoration: BoxDecoration(border: Border(bottom: BorderSide(color: Colors.grey.shade100)))))));
 }
