@@ -1,0 +1,29 @@
+name: ahu_helper
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.10.8
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 👇 添加以下内容 👇
+  dio: ^5.3.0
+  dio_cookie_manager: ^3.0.0
+  cookie_jar: ^4.0.0
+  html: ^0.15.4
+  fluttertoast: ^8.2.4
+  shared_preferences: ^2.2.0
+  # 👆 添加以上内容 👆
+
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
