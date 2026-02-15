@@ -1,96 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'api/auth_service.dart';
+import 'api/net_client.dart';
+import 'pages/webview_login_page.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(const MaterialApp(home: HomePage()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: '安大助手 Flutter版',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: const LoginPage(),
-    );
-  }
+  State<HomePage> createState() => _HomePageState();
 }
 
-class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+class _HomePageState extends State<HomePage> {
+  String _info = "请先登录教务系统";
 
-  @override
-  State<LoginPage> createState() => _LoginPageState();
-}
-
-class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _userCtrl = TextEditingController();
-  final TextEditingController _pwdCtrl = TextEditingController();
-  bool _isLoading = false;
-
-  void _doLogin() async {
-    if (_userCtrl.text.isEmpty || _pwdCtrl.text.isEmpty) {
-      Fluttertoast.showToast(msg: "请输入学号和密码");
-      return;
-    }
-
-    setState(() => _isLoading = true);
+  // 测试抓取课表页面
+  void _fetchSchedule() async {
+    setState(() => _info = "正在抓取课表数据...");
+    // 这里的路径参考 JwxtApi.kt 中的课表地址
+    String html = await NetClient().get("/student/for-std/course-table");
     
-    // 调用我们写的登录服务
-    bool success = await AuthService().login(_userCtrl.text, _pwdCtrl.text);
-
-    setState(() => _isLoading = false);
-
-    if (success) {
-      Fluttertoast.showToast(msg: "登录成功！(模拟)");
-      // TODO: 跳转到课表页面
+    if (html.contains("课程表") || html.contains("semester")) {
+      setState(() => _info = "✅ 抓取成功！获取到 HTML 长度: ${html.length}\n接下来可以用 html 库解析表格了。");
     } else {
-      Fluttertoast.showToast(msg: "登录失败，请检查账号密码");
+      setState(() => _info = "❌ 抓取失败或权限不足，请重新登录。");
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("教务系统登录")),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
+      appBar: AppBar(title: const Text("安大助手 Flutter")),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.school, size: 80, color: Colors.blue),
-            const SizedBox(height: 30),
-            TextField(
-              controller: _userCtrl,
-              decoration: const InputDecoration(
-                labelText: "学号",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.person),
-              ),
+            Padding(
+              padding: const EdgeInsets.all(20.0),
+              child: Text(_info, textAlign: TextAlign.center),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final success = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginWebView()),
+                );
+                if (success == true) {
+                  Fluttertoast.showToast(msg: "登录成功！");
+                  _fetchSchedule();
+                }
+              },
+              child: const Text("去登录 (网页模式)"),
             ),
             const SizedBox(height: 20),
-            TextField(
-              controller: _pwdCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: "密码",
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.lock),
-              ),
-            ),
-            const SizedBox(height: 30),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _doLogin,
-                child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text("登 录", style: TextStyle(fontSize: 18)),
-              ),
+            ElevatedButton(
+              onPressed: _fetchSchedule,
+              child: const Text("直接刷新数据"),
             ),
           ],
         ),

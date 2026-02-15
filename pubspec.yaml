@@ -9,17 +9,22 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # 👇 添加以下内容 👇
+  
+  # 网络请求核心
   dio: ^5.3.0
   dio_cookie_manager: ^3.0.0
   cookie_jar: ^4.0.0
-  html: ^0.15.4
+  
+  # 网页与Cookie提取
+  webview_flutter: ^4.4.2
+  flutter_inappwebview: ^6.0.0  # 使用最新的 6.0 版本
+  
+  # 辅助工具
   fluttertoast: ^8.2.4
-  shared_preferences: ^2.2.0
-  # 👆 添加以上内容 👆
+  # 如果需要解析课表，还需要这个
+  html: ^0.15.4 
 
   cupertino_icons: ^1.0.2
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
