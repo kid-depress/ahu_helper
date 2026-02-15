@@ -14,7 +14,7 @@ dependencies:
   dio: ^5.3.0
   dio_cookie_manager: ^3.0.0
   cookie_jar: ^4.0.0
-  
+  path_provider: ^2.1.2
   # 网页与Cookie提取
   webview_flutter: ^4.4.2
   flutter_inappwebview: ^6.0.0  # 使用最新的 6.0 版本
